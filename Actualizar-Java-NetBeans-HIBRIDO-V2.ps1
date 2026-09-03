@@ -25,34 +25,36 @@ function Stop-WithError([string]$Message, [int]$Code = 1) {
 }
 
 # ============================================================
-# FASE 2: ADMINISTRADOR
-# Aqui NO se usa Winget.
-# Instala los archivos que ya descargo el usuario normal.
+# FASE 2 - ADMINISTRADOR
+# NO usa Winget.
+# Instala lo descargado previamente por el usuario normal.
 # ============================================================
 if ($ElevatedStage) {
     if (-not (Test-IsAdmin)) {
-        Stop-WithError "La fase de administrador no se ejecuto con privilegios elevados."
+        Stop-WithError "La fase de administrador no obtuvo privilegios elevados."
     }
 
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host "   JAVA 25 + NETBEANS - FASE ADMINISTRADOR (1 SOLA UAC)" -ForegroundColor Cyan
+    Write-Host " JAVA 25 + NETBEANS - FASE ADMINISTRADOR (1 SOLA UAC)" -ForegroundColor Cyan
     Write-Host "============================================================" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Winget NO se ejecutara en esta fase." -ForegroundColor Green
-    Write-Host "Se usaran los instaladores descargados por el usuario normal." -ForegroundColor Green
+    Write-Host "Se usaran los instaladores descargados por Estudiante." -ForegroundColor Green
 
     if (-not (Test-Path $DownloadDir)) {
         Stop-WithError "No existe la carpeta de descarga: $DownloadDir"
     }
 
+    # ----------------------------
+    # Encontrar instaladores
+    # ----------------------------
     $jdkInstaller = Get-ChildItem -Path $DownloadDir -Recurse -File -Filter *.msi |
         Where-Object { $_.Name -match '(?i)(zulu|jdk|java)' } |
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
 
     if (-not $jdkInstaller) {
-        # Si Winget cambio el nombre, usar el unico MSI disponible.
         $jdkInstaller = Get-ChildItem -Path $DownloadDir -Recurse -File -Filter *.msi |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
@@ -64,35 +66,72 @@ if ($ElevatedStage) {
         Select-Object -First 1
 
     if (-not $netBeansInstaller) {
-        # Si Winget cambio el nombre, usar el unico EXE disponible.
         $netBeansInstaller = Get-ChildItem -Path $DownloadDir -Recurse -File -Filter *.exe |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
     }
 
     if (-not $jdkInstaller) {
-        Stop-WithError "No se encontro el instalador MSI de Azul Zulu JDK 25."
+        Stop-WithError "No se encontro el MSI de Azul Zulu JDK 25."
     }
 
     if (-not $netBeansInstaller) {
-        Stop-WithError "No se encontro el instalador EXE de Apache NetBeans."
+        Stop-WithError "No se encontro el EXE de Apache NetBeans."
     }
 
+    # ----------------------------
+    # Instalar JDK
+    # Winget usa ADDLOCAL=ALL para este paquete.
+    # ----------------------------
     Write-Host ""
-    Write-Host "[1/4] Instalando Azul Zulu JDK 25..." -ForegroundColor Yellow
+    Write-Host "[1/4] Instalando / actualizando Azul Zulu JDK 25..." -ForegroundColor Yellow
     Write-Host "Archivo: $($jdkInstaller.Name)" -ForegroundColor DarkGray
 
+    $msiLog = Join-Path $env:TEMP "Zulu-JDK25-install.log"
+
+    $jdkArgs = @(
+        "/i"
+        "`"$($jdkInstaller.FullName)`""
+        "ADDLOCAL=ALL"
+        "/qn"
+        "/norestart"
+        "/l*v"
+        "`"$msiLog`""
+    )
+
     $jdkProcess = Start-Process -FilePath "msiexec.exe" `
-        -ArgumentList @("/i", "`"$($jdkInstaller.FullName)`"", "/qn", "/norestart") `
-        -Wait -PassThru
+        -ArgumentList $jdkArgs `
+        -Wait `
+        -PassThru
 
     if ($jdkProcess.ExitCode -notin @(0, 1641, 3010)) {
-        Stop-WithError "El instalador de Java devolvio el codigo $($jdkProcess.ExitCode)." $jdkProcess.ExitCode
+        Write-Host ""
+        Write-Host "El MSI de Java devolvio codigo $($jdkProcess.ExitCode)." -ForegroundColor Red
+        Write-Host "Log MSI: $msiLog" -ForegroundColor Yellow
+
+        # Si el producto ya esta instalado, comprobar si Java 25 existe
+        # antes de considerar esto un fallo fatal.
+        $existingJava = Get-ChildItem "C:\Program Files\Zulu" -Directory -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.Name -like "zulu-25*" -and
+                (Test-Path (Join-Path $_.FullName "bin\java.exe"))
+            } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+        if ($existingJava) {
+            Write-Host "Zulu JDK 25 ya existe en: $($existingJava.FullName)" -ForegroundColor Green
+            Write-Host "Se continuara con JAVA_HOME, PATH y NetBeans." -ForegroundColor Green
+        } else {
+            Stop-WithError "No se pudo instalar Azul Zulu JDK 25. Revise el log indicado." $jdkProcess.ExitCode
+        }
+    } else {
+        Write-Host "JDK 25 instalado/actualizado correctamente." -ForegroundColor Green
     }
 
-    Write-Host "JDK 25 instalado/actualizado." -ForegroundColor Green
-
-    # Localizar la instalacion real de Zulu 25
+    # ----------------------------
+    # JAVA_HOME + PATH
+    # ----------------------------
     Write-Host ""
     Write-Host "[2/4] Configurando JAVA_HOME y PATH..." -ForegroundColor Yellow
 
@@ -110,7 +149,7 @@ if ($ElevatedStage) {
         if ($candidate) {
             $javaHome = $candidate.FullName
         } else {
-            Stop-WithError "Java se instalo, pero no pude localizar la carpeta de Zulu JDK 25."
+            Stop-WithError "No pude localizar la instalacion de Zulu JDK 25."
         }
     }
 
@@ -119,7 +158,7 @@ if ($ElevatedStage) {
     $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
     $javaBin = "$javaHome\bin"
 
-    # Quitar entradas antiguas/duplicadas de Zulu antes de agregar la actual.
+    # Eliminar entradas Zulu antiguas/duplicadas del PATH.
     $cleanParts = @(
         $machinePath -split ";" |
         Where-Object {
@@ -131,7 +170,7 @@ if ($ElevatedStage) {
     $newMachinePath = ($javaBin + ";" + ($cleanParts -join ";")).TrimEnd(";")
     [Environment]::SetEnvironmentVariable("Path", $newMachinePath, "Machine")
 
-    # Refrescar solo esta consola para las comprobaciones.
+    # Refrescar esta consola para comprobar.
     $env:JAVA_HOME = $javaHome
     $env:Path = "$javaBin;$env:Path"
 
@@ -140,41 +179,47 @@ if ($ElevatedStage) {
     [Environment]::GetEnvironmentVariable("Path", "Machine") -split ";" |
         Select-String "Zulu"
 
+    # ----------------------------
+    # Instalar NetBeans
+    # El manifiesto Winget usa --silent.
+    # ----------------------------
     Write-Host ""
     Write-Host "[3/4] Instalando / actualizando Apache NetBeans..." -ForegroundColor Yellow
     Write-Host "Archivo: $($netBeansInstaller.Name)" -ForegroundColor DarkGray
 
-    # El manifiesto oficial de Winget para NetBeans usa --silent.
     $nbProcess = Start-Process -FilePath $netBeansInstaller.FullName `
         -ArgumentList @("--silent") `
-        -Wait -PassThru
+        -Wait `
+        -PassThru
 
     if ($nbProcess.ExitCode -notin @(0, 1641, 3010)) {
-        Stop-WithError "El instalador de NetBeans devolvio el codigo $($nbProcess.ExitCode)." $nbProcess.ExitCode
+        Stop-WithError "El instalador de NetBeans devolvio codigo $($nbProcess.ExitCode)." $nbProcess.ExitCode
     }
 
-    Write-Host "NetBeans instalado/actualizado." -ForegroundColor Green
+    Write-Host "NetBeans instalado/actualizado correctamente." -ForegroundColor Green
 
+    # ----------------------------
+    # Verificacion
+    # ----------------------------
     Write-Host ""
     Write-Host "[4/4] Verificando Java..." -ForegroundColor Yellow
+
     & "$javaHome\bin\java.exe" -version
 
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "                PROCESO COMPLETADO" -ForegroundColor Green
+    Write-Host "                 PROCESO COMPLETADO" -ForegroundColor Green
     Write-Host "============================================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Java y NetBeans fueron instalados con UNA sola solicitud" -ForegroundColor Green
-    Write-Host "de credenciales de administrador." -ForegroundColor Green
+    Write-Host "Solo se utilizo una elevacion UAC para instalar y configurar." -ForegroundColor Green
 
     Pause-End
     exit 0
 }
 
 # ============================================================
-# FASE 1: USUARIO NORMAL
-# Winget se ejecuta SOLO aqui.
-# NO instala: solamente actualiza fuentes y descarga instaladores.
+# FASE 1 - USUARIO NORMAL
+# Winget SOLO se ejecuta aqui.
 # ============================================================
 Clear-Host
 Write-Host "============================================================" -ForegroundColor Cyan
@@ -182,14 +227,14 @@ Write-Host "       ACTUALIZACION JAVA 25 + APACHE NETBEANS" -ForegroundColor Cya
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "FASE 1: usuario normal." -ForegroundColor Green
-Write-Host "Winget solo actualizara fuentes y descargara los instaladores." -ForegroundColor Green
-Write-Host "La contraseña de administrador se pedira UNA sola vez despues." -ForegroundColor Green
+Write-Host "Winget descargara Java y NetBeans SIN instalarlos." -ForegroundColor Green
+Write-Host "Luego se pedira la contraseña de administrador UNA sola vez." -ForegroundColor Green
 Write-Host ""
 
 if (Test-IsAdmin) {
-    Write-Host "ADVERTENCIA: Este archivo fue abierto como administrador." -ForegroundColor Yellow
-    Write-Host "Cierralo y ejecutalo como usuario normal para que Winget use" -ForegroundColor Yellow
-    Write-Host "el perfil Estudiante, que es el que ya comprobamos que funciona." -ForegroundColor Yellow
+    Write-Host "ADVERTENCIA: Se ejecuto como administrador." -ForegroundColor Yellow
+    Write-Host "Cierre esta ventana y abra el CMD normalmente." -ForegroundColor Yellow
+    Write-Host "Winget debe ejecutarse con el perfil Estudiante." -ForegroundColor Yellow
     Pause-End
     exit 2
 }
@@ -199,13 +244,12 @@ if (-not $winget) {
     Stop-WithError "Winget no esta disponible para el usuario actual."
 }
 
-# Comprobar que esta version de Winget tenga el comando download.
+# Confirmar soporte de winget download.
 $downloadHelp = (& winget download --help 2>&1 | Out-String)
 if ($LASTEXITCODE -ne 0 -or $downloadHelp -notmatch '(?i)download') {
-    Stop-WithError "Esta version de Winget no soporta 'winget download'. Actualiza App Installer y vuelve a intentarlo."
+    Stop-WithError "Esta version de Winget no soporta 'winget download'."
 }
 
-# Carpeta temporal propia de esta ejecucion.
 $DownloadDir = Join-Path $env:TEMP ("JavaNetBeans-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $DownloadDir -Force | Out-Null
 
@@ -251,25 +295,24 @@ $msiCount = @(Get-ChildItem $DownloadDir -Recurse -File -Filter *.msi).Count
 $exeCount = @(Get-ChildItem $DownloadDir -Recurse -File -Filter *.exe).Count
 
 if ($msiCount -lt 1) {
-    Stop-WithError "Winget termino, pero no aparece el MSI de Java en la carpeta temporal."
+    Stop-WithError "No aparece el MSI de Java en la carpeta temporal."
 }
 if ($exeCount -lt 1) {
-    Stop-WithError "Winget termino, pero no aparece el EXE de NetBeans en la carpeta temporal."
+    Stop-WithError "No aparece el EXE de NetBeans en la carpeta temporal."
 }
 
 Write-Host ""
 Write-Host "[4/4] Descargas listas." -ForegroundColor Green
 Write-Host "Ahora se pediran credenciales de administrador UNA sola vez." -ForegroundColor Yellow
 Write-Host ""
-Write-Host "IMPORTANTE: desde la ventana elevada NO se ejecutara Winget." -ForegroundColor Cyan
+Write-Host "La fase elevada NO ejecutara Winget." -ForegroundColor Cyan
 Write-Host ""
 
-# Relanzar ESTE MISMO script elevado, pero solo para la fase local.
 $argList = @(
-    "-NoProfile",
-    "-ExecutionPolicy", "Bypass",
-    "-File", "`"$PSCommandPath`"",
-    "-ElevatedStage",
+    "-NoProfile"
+    "-ExecutionPolicy", "Bypass"
+    "-File", "`"$PSCommandPath`""
+    "-ElevatedStage"
     "-DownloadDir", "`"$DownloadDir`""
 )
 
@@ -286,11 +329,10 @@ try {
     }
 } catch {
     Write-Host ""
-    Write-Host "No se concedieron permisos de administrador o la elevacion fallo." -ForegroundColor Red
+    Write-Host "No se concedieron permisos o la elevacion fallo." -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
 }
 
-# Limpieza de los instaladores descargados.
 try {
     Remove-Item -Path $DownloadDir -Recurse -Force -ErrorAction SilentlyContinue
 } catch {}
