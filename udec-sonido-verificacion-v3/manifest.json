@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "UdeC Asistencia - Sonido de verificación",
+  "version": "3.0.0",
+  "description": "Reproduce el sonido Bip Bip del Correcaminos cuando el registro de asistencia se completa y aparece la ficha de la persona.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://plataforma.ucundinamarca.edu.co/aplicaciones5/UAA/asistencias/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sounds/success.mp3"],
+      "matches": ["https://plataforma.ucundinamarca.edu.co/*"]
+    }
+  ]
+}
