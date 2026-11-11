@@ -1,9 +1,0 @@
-Esta carpeta se excluye de Git.
-
-Orden de preferencia:
-1. Imagen administrativa completa que incluya StartSWInstall.exe.
-2. Imagen administrativa completa con 64bit\SOLIDWORKS\SOLIDWORKS.msi.
-3. Installation Manager extraido (setup.exe y carpeta sldim).
-4. SolidWorksSetup.exe original (flujo interactivo).
-
-No publique este contenido, el serial ni el servidor de licencias.
