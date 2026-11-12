@@ -1,0 +1,23 @@
+ANUNCIOS AUTOMATICOS DEL GIMNASIO - WINDOWS 10/11
+
+ASIGNACION SUPUESTA DE LOS AUDIOS ADJUNTOS:
+- Archivo WhatsApp sin numero: 8:45 p. m.
+- Archivo WhatsApp (1): 8:55 p. m.
+- Archivo WhatsApp (2): 9:00 p. m.
+IMPORTANTE: Escuche los audios con PROBAR_AUDIOS.bat y confirme que corresponden.
+Si no corresponden, intercambie los archivos 0845.wav, 0855.wav y 0900.wav dentro de Audio ANTES de instalar, o reinstale despues de corregirlos.
+
+INSTALACION:
+1. Extraiga todo el ZIP en una carpeta.
+2. Inicie sesion en Windows con la cuenta que usara el gimnasio.
+3. Ejecute INSTALAR.bat. Si falla por permisos, ejecutelo como administrador (con cuidado de usar la cuenta correcta).
+4. Ejecute PROBAR_AUDIOS.bat para probar cada mensaje.
+5. Compruebe en Win+R > taskschd.msc las tareas Gimnasio_Anuncio_0845, _0855, _0900.
+
+HORARIO: lunes a viernes, 20:45, 20:55, 21:00 (hora local del PC).
+El sistema utiliza los audios entregados, NO genera voz sintetica nueva.
+El PC debe estar ENCENDIDO y SIN SUSPENSION; la sesion del usuario debe permanecer iniciada y la salida predeterminada debe ser la de las bocinas. Puede bloquear la pantalla sin cerrar sesion.
+La reproduccion usa SoundPlayer de Windows y archivos WAV; no necesita internet.
+
+PARA CAMBIAR UN AUDIO: sustituya el WAV correspondiente en Audio y ejecute de nuevo INSTALAR.bat.
+PARA QUITAR LAS TAREAS: abra taskschd.msc y elimine las tres tareas Gimnasio_Anuncio_*. 
