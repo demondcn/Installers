@@ -1,21 +1,16 @@
-REPLIT EN CHROME SIN MODIFICAR LIMPIEZA.BAT
+REPLIT SIN ADMINISTRADOR
+=======================
 
-1) Extrae los 3 archivos en la misma carpeta.
-2) Haz doble clic en Instalar_Replit_Fijo.bat (no hace falta administrador).
-3) Abre Chrome y escribe chrome://policy; pulsa Reload policies.
-4) Comprueba que ManagedBookmarks aparece sin errores.
-5) En Chrome, busca la carpeta de marcadores "Accesos fijos".
-6) Tras el siguiente inicio de Windows, se abrira Replit en Chrome luego de 10 minutos.
+1. Extrae el ZIP en una carpeta temporal.
+2. Haz doble clic en Instalar_Replit_Sin_Admin.bat (NO 'Ejecutar como administrador').
+3. Confirma los mensajes de instalacion.
+4. Al iniciar la proxima sesion de Windows, el sistema esperara 10 minutos y abrira Chrome en Replit.
+5. Busca "Replit" en el menu Inicio para abrirlo manualmente.
 
-NOTA: El limpiador seguira eliminando cookies/sesiones. Esta solucion
-solo fija el marcador y abre la URL tras la limpieza.
-Si Chrome esta gestionado por la empresa, la politica puede no aplicarse.
-Si ya existia ManagedBookmarks, el instalador no la sobrescribe.
+No modifica Limpieza.bat, no usa el Registro, no crea un perfil de Chrome ni restaura cookies.
+No crea un marcador interno de Chrome: el acceso es de Windows, y no depende de las preferencias de Chrome.
+No mantiene las sesiones iniciadas si Limpieza.bat elimina las cookies.
+Si las politicas de tu institucion impiden escribir en la carpeta Inicio o iniciar scripts, puede no funcionar.
+Si Limpieza.bat dura mas de diez minutos, habra que aumentar el tiempo de espera en el archivo VBS antes de instalarlo.
 
-PARA DESINSTALAR:
-- Win+R > shell:startup
-- Borra Abrir_Replit_Despues_Limpieza.vbs
-- Win+R > regedit
-- Ve a HKEY_CURRENT_USER\Software\Policies\Google\Chrome
-- Elimina SOLO el valor ManagedBookmarks que agrego este instalador,
-  y opcionalmente BookmarkBarEnabled si no existian antes.
+Para desinstalar: Desinstalar_Replit_Sin_Admin.bat
