@@ -25,7 +25,7 @@ REM ##### INICIO_POWERSHELL #####
 $ErrorActionPreference = 'Stop'
 $taskName = 'Replit_Chrome_Hasta_31Dic2026'
 $expires = [datetime]'2027-01-01T00:00:00'
-$delay = 'PT1M'  # Da tiempo a Limpieza.bat a terminar.
+$delay = 'PT15S'  # Espera 15 segundos tras el inicio de sesion.
 $url = 'https://apps-script-frontend.replit.app/'
 
 if ((Get-Date) -ge $expires) {
@@ -82,7 +82,7 @@ if ($chrome) {
     $service.Connect()
     $folder = $service.GetFolder('\')
     $definition = $service.NewTask(0)
-    $definition.RegistrationInfo.Description = 'Abre Replit en Chrome al iniciar sesion (1 minuto de espera). Caduca el 31-12-2026 y se deshabilita el 01-01-2027.'
+    $definition.RegistrationInfo.Description = 'Abre Replit en Chrome al iniciar sesion (15 segundos de espera). Caduca el 31-12-2026 y se deshabilita el 01-01-2027.'
     $definition.Principal.UserId = $sid
     $definition.Principal.LogonType = 3  # InteractiveToken: no pide contrasena
     $definition.Principal.RunLevel = 0   # LeastPrivilege: no administrador
@@ -116,7 +116,7 @@ if ($chrome) {
     $installed = $folder.GetTask($taskName)
     Write-Host ('[OK] Tarea creada: ' + $taskName)
     Write-Host '[OK] Se ejecuta para el usuario actual al iniciar sesion.'
-    Write-Host '[OK] Retraso: 1 minuto (para dejar terminar Limpieza.bat).'
+    Write-Host '[OK] Retraso: 15 segundos tras iniciar sesion.'
     Write-Host '[OK] Ultimo dia de apertura: 31/12/2026.'
     Write-Host '[OK] Desde 01/01/2027 no abre el sitio y busca deshabilitarse.'
     Write-Host ('[OK] Archivo de ejecucion: ' + $runner)
